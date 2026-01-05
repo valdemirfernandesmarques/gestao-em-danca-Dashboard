@@ -60,7 +60,7 @@
       <header class="main-header">
         <h2>Seja bem-vinda, {{ userName }}!</h2>
         <div class="user-profile">
-          <img src="https://i.pravatar.cc/40" alt="Foto do Usuário" />
+        <img src="https://i.pravatar.cc/40" alt="Foto do Usuário" /> 
         </div>
       </header>
 
@@ -122,7 +122,7 @@ onMounted(() => carregarLogo())
   height: 100vh;
 }
 
-/* Sidebar */
+/* Sidebar */  
 .sidebar {
   width: 250px;
   background-color: #1a202c;
