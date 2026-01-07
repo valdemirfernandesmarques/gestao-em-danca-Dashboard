@@ -4,12 +4,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AdminEscolaLayout from '../layouts/AdminEscolaLayout.vue'
 import SuperAdminLayout from '../layouts/SuperAdminLayout.vue'
 
-// Views principais
+// Views públicas
 import Login from '../views/Login.vue'
 import RecuperarSenha from '../views/RecuperarSenha.vue'
 import ResetSenha from '../views/ResetSenha.vue'
 
-// Views de Conteúdo
+// Views ADMIN_ESCOLA
 import AdminEscolaDashboard from '../views/AdminEscolaDashboard.vue'
 import Alunos from '../views/Alunos.vue'
 import Professor from '../views/Professor.vue'
@@ -26,6 +26,9 @@ import Relatorio from '../views/Relatorio.vue'
 import Estoque from '../views/Estoque.vue'
 import Funcionarios from '../views/Funcionarios.vue'
 import Comissao from '../views/Comissao.vue'
+
+// Views SUPER_ADMIN
+import SuperAdminDashboard from '../views/SuperAdminDashboard.vue'
 import IsencaoTaxa from '../views/IsencaoTaxa.vue'
 
 // Auth Guard
@@ -56,7 +59,7 @@ const routes = [
       { path: 'produtos', name: 'EscolaProdutos', component: Produtos },
       { path: 'vendas', name: 'EscolaVendas', component: Venda },
       { path: 'venda-itens', name: 'EscolaVendaItens', component: VendaItem },
-      { path: 'relatorios', name: 'EscolaRelatorios', component: Relatorio }, // ✅ Relatório corrigido
+      { path: 'relatorios', name: 'EscolaRelatorios', component: Relatorio },
       { path: 'estoque', name: 'EscolaEstoque', component: Estoque },
       { path: 'funcionarios', name: 'EscolaFuncionarios', component: Funcionarios },
       { path: 'comissoes', name: 'EscolaComissoes', component: Comissao }
@@ -72,26 +75,41 @@ const routes = [
       const role = localStorage.getItem('role')
 
       if (!token) {
-        next('/login')
-      } else if (role !== 'SUPER_ADMIN') {
-        next('/escola')
-      } else {
-        next()
+        return next('/login')
       }
+
+      if (role !== 'SUPER_ADMIN') {
+        return next('/escola')
+      }
+
+      return next()
     },
     children: [
       { path: '', redirect: '/super/dashboard' },
-      { path: 'dashboard', name: 'SuperAdminDashboard', component: IsencaoTaxa },
+
+      // ✅ Dashboard REAL do SUPER_ADMIN (KPIs, gráficos, ranking, etc)
+      {
+        path: 'dashboard',
+        name: 'SuperAdminDashboard',
+        component: SuperAdminDashboard
+      },
+
+      // ✅ Isenção de Taxa (exclusiva do SUPER_ADMIN)
+      {
+        path: 'isencao-taxa',
+        name: 'SuperAdminIsencaoTaxa',
+        component: IsencaoTaxa
+      },
+
       { path: 'alunos', name: 'SuperAdminAlunos', component: Alunos },
       { path: 'turmas', name: 'SuperAdminTurmas', component: Turma },
       { path: 'financeiro', name: 'SuperAdminFinanceiro', component: Pagamentos },
-      { path: 'professores', name: 'SuperAdminProfessores', component: Professor },
       { path: 'comunicacao', name: 'SuperAdminComunicacao', component: Venda },
       { path: 'relatorios', name: 'SuperAdminRelatorios', component: Relatorio }
     ]
   },
 
-  // 🔹 Rota fallback
+  // 🔹 Fallback
   { path: '/:pathMatch(.*)*', redirect: '/login' }
 ]
 

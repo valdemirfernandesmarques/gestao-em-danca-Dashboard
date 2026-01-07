@@ -29,9 +29,12 @@ const matriculaRoutes = require("./routes/matriculaRoutes");
 const pagamentoRoutes = require("./routes/pagamentoRoutes");
 const funcionarioRoutes = require("./routes/funcionarioRoutes");
 const professorModalidadeRoutes = require("./routes/professorModalidadeRoutes");
-const comissaoRoutes = require("./routes/comissaoRoutes"); // ✅ nome correto
+const comissaoRoutes = require("./routes/comissaoRoutes");
 const isencaoTaxaRoutes = require("./routes/isencaoTaxaRoutes");
-const financeiroRoutes = require("./routes/financeiroRoutes"); // ✅ NOVA ROTA
+const financeiroRoutes = require("./routes/financeiroRoutes");
+
+// ✅ ROTA SUPER_ADMIN (ISOLADA)
+const superAdminDashboardRoutes = require("./routes/superAdminDashboardRoutes");
 
 // ===== Configurando rotas =====
 app.use("/api/auth", authRoutes);
@@ -51,7 +54,10 @@ app.use("/api/funcionarios", funcionarioRoutes);
 app.use("/api/professor-modalidade", professorModalidadeRoutes);
 app.use("/api/comissoes", comissaoRoutes);
 app.use("/api/isencao-taxa", isencaoTaxaRoutes);
-app.use("/api/financeiro", financeiroRoutes); // ✅ REGISTRO DO FINANCEIRO
+app.use("/api/financeiro", financeiroRoutes);
+
+// 🚀 SUPER_ADMIN (TOTALMENTE ISOLADO)
+app.use("/api/super", superAdminDashboardRoutes);
 
 // ===== Função para criar Super Admin =====
 async function criarSuperAdmin() {
