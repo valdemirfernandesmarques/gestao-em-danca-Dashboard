@@ -1,276 +1,250 @@
 <template>
-  <div :class="['page', { light: isLight }]">
-    <header>
+  <div>
+    <!-- HEADER -->
+    <header class="header">
       <h1>SUPER_ADMIN DASHBOARD</h1>
-      <button class="toggle-btn" @click="toggleMode">
-        {{ isLight ? '☀️' : '🌙' }}
+      <button class="toggle-btn" @click="toggleTheme">
+        {{ isLight ? "🌙" : "☀️" }}
       </button>
     </header>
 
+    <!-- DASHBOARD -->
     <main class="dashboard">
-
+      <!-- DOWNLOADS -->
       <div class="card">
         <h2>NÚMERO DE DOWNLOADS</h2>
-        <div class="number">{{ downloads }}</div>
+        <p class="number">{{ downloads }}</p>
         <span>Quantas vezes o aplicativo foi baixado por escolas</span>
       </div>
 
+      <!-- USUÁRIOS ATIVOS -->
       <div class="card">
         <h2>USUÁRIOS ATIVOS</h2>
-        <div class="number">{{ usuarios }}</div>
+        <p class="number">{{ usuariosAtivos }}</p>
         <span>Quantas escolas estão usando o sistema neste momento</span>
       </div>
 
+      <!-- GAUGE -->
       <div class="card">
         <h2>DADOS DE USO</h2>
-        <canvas ref="usageChart"></canvas>
+        <div class="gauge-container">
+          <canvas ref="gaugeChart"></canvas>
+          <div class="gauge-text">{{ percentualUso }}%</div>
+        </div>
         <span>Informações sobre como os usuários estão interagindo com o sistema</span>
       </div>
 
+      <!-- RECEITA POR SERVIÇO -->
       <div class="card">
         <h2>RECEITA MENSAL POR SERVIÇO</h2>
-        <canvas ref="serviceChart"></canvas>
+        <canvas ref="servicoChart"></canvas>
         <span>Ganho mensal por serviço, conforme a taxa de 1,3%</span>
       </div>
 
+      <!-- RECEITA TOTAL BARRAS -->
       <div class="card">
         <h2>RECEITA TOTAL POR MÊS</h2>
-        <canvas ref="monthBarChart"></canvas>
+        <canvas ref="barrasChart"></canvas>
         <span>Ganho total mensal conforme a taxa de 1,3%</span>
       </div>
 
+      <!-- RECEITA TOTAL LINHA -->
       <div class="card">
         <h2>RECEITA TOTAL POR MÊS</h2>
-        <canvas ref="monthLineChart"></canvas>
+        <canvas ref="linhaChart"></canvas>
       </div>
-
     </main>
   </div>
 </template>
 
 <script>
-import {
-  Chart,
-  DoughnutController,
-  BarController,
-  LineController,
-  ArcElement,
-  BarElement,
-  PointElement,
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  Tooltip,
-  Legend
-} from 'chart.js'
-
-Chart.register(
-  DoughnutController,
-  BarController,
-  LineController,
-  ArcElement,
-  BarElement,
-  PointElement,
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  Tooltip,
-  Legend
-)
+import { ref, onMounted } from "vue";
+import axios from "axios";
+import Chart from "chart.js/auto";
 
 export default {
-  name: 'SuperAdminDashboard',
+  name: "SuperAdminDashboard",
+  setup() {
+    const downloads = ref(0);
+    const usuariosAtivos = ref(0);
+    const percentualUso = ref(0);
+    const isLight = ref(false);
 
-  data() {
-    return {
-      isLight: false,
-      downloads: 0,
-      usuarios: 0,
-      charts: {}
-    }
-  },
+    const gaugeChart = ref(null);
+    const servicoChart = ref(null);
+    const barrasChart = ref(null);
+    const linhaChart = ref(null);
 
-  mounted() {
-    this.animateNumbers()
-    this.initCharts()
-  },
+    let gaugeInstance, servicoInstance, barrasInstance, linhaInstance;
 
-  methods: {
-    toggleMode() {
-      this.isLight = !this.isLight
-      this.updateChartsTheme()
-    },
+    const token = localStorage.getItem("token");
 
-    animateNumbers() {
-      this.countUp('downloads', 1234)
-      this.countUp('usuarios', 534)
-    },
+    const api = axios.create({
+      baseURL: "http://localhost:3000/api/super",
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-    countUp(field, target) {
-      let current = 0
-      const step = target / 100
+    // ===============================
+    // 🔢 Animação de números
+    // ===============================
+    const animateNumber = (refVar, target) => {
+      let current = 0;
+      const step = Math.max(1, Math.ceil(target / 50));
       const interval = setInterval(() => {
-        current += step
+        current += step;
         if (current >= target) {
-          this[field] = target.toLocaleString()
-          clearInterval(interval)
+          refVar.value = target;
+          clearInterval(interval);
         } else {
-          this[field] = Math.floor(current).toLocaleString()
+          refVar.value = current;
         }
-      }, 20)
-    },
+      }, 20);
+    };
 
-    chartColors() {
-      return {
-        text: this.isLight ? '#222' : '#fff',
-        grid: this.isLight ? '#ccc' : '#444'
-      }
-    },
+    // ===============================
+    // 📊 Charts
+    // ===============================
+    const createGauge = (value) => {
+      if (gaugeInstance) gaugeInstance.destroy();
 
-    initCharts() {
-      this.initUsageChart()
-      this.initServiceChart()
-      this.initMonthBarChart()
-      this.initMonthLineChart()
-    },
-
-    updateChartsTheme() {
-      Object.values(this.charts).forEach(c => c.destroy())
-      this.initCharts()
-    },
-
-    initUsageChart() {
-      let current = 0
-      const ctx = this.$refs.usageChart
-
-      this.charts.usage = new Chart(ctx, {
-        type: 'doughnut',
+      gaugeInstance = new Chart(gaugeChart.value, {
+        type: "doughnut",
         data: {
           datasets: [{
-            data: [0, 100],
-            backgroundColor: ['limegreen', '#333'],
+            data: [value, 100 - value],
+            backgroundColor: ["limegreen", "#2c2c2c"],
             borderWidth: 0
           }]
         },
         options: {
           rotation: -90,
           circumference: 180,
-          cutout: '70%',
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: false }
-          }
-        },
-        plugins: [{
-          id: 'text',
-          beforeDraw: chart => {
-            const { ctx, chartArea } = chart
-            ctx.save()
-            ctx.fillStyle = this.chartColors().text
-            ctx.font = 'bold 22px Arial'
-            ctx.textAlign = 'center'
-            ctx.fillText('65%', chartArea.width / 2, chartArea.height - 10)
-            ctx.restore()
-          }
-        }]
-      })
+          cutout: "75%",
+          animation: { duration: 2000 },
+          plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+      });
+    };
 
-      const interval = setInterval(() => {
-        if (current >= 65) return clearInterval(interval)
-        current++
-        this.charts.usage.data.datasets[0].data = [current, 100 - current]
-        this.charts.usage.update()
-      }, 30)
-    },
+    const createServicoChart = (receitas) => {
+      if (servicoInstance) servicoInstance.destroy();
 
-    initServiceChart() {
-      const c = this.chartColors()
-      this.charts.service = new Chart(this.$refs.serviceChart, {
-        type: 'bar',
+      servicoInstance = new Chart(servicoChart.value, {
+        type: "bar",
         data: {
-          labels: ['Pix', 'Cartão', 'Boleto', 'Débito'],
+          labels: ["Pix", "Crédito", "Débito", "Dinheiro"],
           datasets: [{
-            data: [23, 18, 13, 9],
-            backgroundColor: ['limegreen', 'dodgerblue', 'orange', 'crimson']
+            data: [
+              receitas.Pix,
+              receitas.Crédito,
+              receitas.Débito,
+              receitas.Dinheiro
+            ],
+            backgroundColor: [
+              "limegreen",
+              "dodgerblue",
+              "crimson",
+              "orange"
+            ]
           }]
         },
         options: {
-          animation: { duration: 1800, easing: 'easeOutElastic' },
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: c.text }, grid: { color: c.grid } },
-            y: { ticks: { color: c.text }, grid: { color: c.grid }, beginAtZero: true }
-          }
+          animation: { duration: 2000 },
+          plugins: { legend: { display: false } }
         }
-      })
-    },
+      });
+    };
 
-    initMonthBarChart() {
-      const c = this.chartColors()
-      this.charts.monthBar = new Chart(this.$refs.monthBarChart, {
-        type: 'bar',
+    const createBarrasChart = (meses, valores) => {
+      if (barrasInstance) barrasInstance.destroy();
+
+      barrasInstance = new Chart(barrasChart.value, {
+        type: "bar",
         data: {
-          labels: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Dez'],
+          labels: meses,
           datasets: [{
-            data: [2000,2300,2700,2800,3000,3300,3600,4000],
-            backgroundColor: 'dodgerblue'
+            data: valores,
+            backgroundColor: "dodgerblue"
           }]
         },
         options: {
-          animation: { duration: 2000, easing: 'easeOutBounce' },
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: c.text }, grid: { color: c.grid } },
-            y: { ticks: { color: c.text }, grid: { color: c.grid }, beginAtZero: true }
-          }
+          animation: { duration: 2000 },
+          plugins: { legend: { display: false } }
         }
-      })
-    },
+      });
+    };
 
-    initMonthLineChart() {
-      const c = this.chartColors()
-      this.charts.monthLine = new Chart(this.$refs.monthLineChart, {
-        type: 'line',
+    const createLinhaChart = (meses, valores) => {
+      if (linhaInstance) linhaInstance.destroy();
+
+      linhaInstance = new Chart(linhaChart.value, {
+        type: "line",
         data: {
-          labels: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Dez'],
+          labels: meses,
           datasets: [{
-            data: [2100,2500,2800,2900,3100,3400,3700,4200],
-            borderColor: 'dodgerblue',
-            backgroundColor: 'rgba(30,144,255,0.3)',
+            data: valores,
+            borderColor: "dodgerblue",
+            backgroundColor: "rgba(30,144,255,0.3)",
             fill: true,
             tension: 0.4
           }]
         },
         options: {
-          animation: { duration: 2500, easing: 'easeOutQuart' },
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: c.text }, grid: { color: c.grid } },
-            y: { ticks: { color: c.text }, grid: { color: c.grid }, beginAtZero: true }
-          }
+          animation: { duration: 2000 },
+          plugins: { legend: { display: false } }
         }
-      })
-    }
+      });
+    };
+
+    // ===============================
+    // 🔌 Carregar dados reais
+    // ===============================
+    const carregarDashboard = async () => {
+      const uso = await api.get("/uso");
+      const downloadsRes = await api.get("/downloads");
+      const usuariosRes = await api.get("/usuarios-ativos");
+      const servicoRes = await api.get("/receita-servico");
+      const mensalRes = await api.get("/receita-total-mensal");
+
+      animateNumber(downloads, downloadsRes.data.totalDownloads);
+      animateNumber(usuariosAtivos, usuariosRes.data.escolasAtivas);
+      percentualUso.value = uso.data.percentualUso;
+
+      createGauge(uso.data.percentualUso);
+      createServicoChart(servicoRes.data.receitas);
+      createBarrasChart(mensalRes.data.meses, mensalRes.data.receitasBarras);
+      createLinhaChart(mensalRes.data.meses, mensalRes.data.receitasLinha);
+    };
+
+    // ===============================
+    // 🌗 Tema
+    // ===============================
+    const toggleTheme = () => {
+      document.body.classList.toggle("light");
+      isLight.value = document.body.classList.contains("light");
+    };
+
+    onMounted(carregarDashboard);
+
+    return {
+      downloads,
+      usuariosAtivos,
+      percentualUso,
+      gaugeChart,
+      servicoChart,
+      barrasChart,
+      linhaChart,
+      toggleTheme,
+      isLight
+    };
   }
-}
+};
 </script>
 
 <style scoped>
-.page {
-  background: #0d124a;
-  min-height: 100vh;
-  color: #fff;
-  transition: all 0.3s;
-}
-
-.page.light {
-  background: #f4f4f4;
-  color: #222;
-}
-
-header {
-  padding: 20px;
+.header {
   text-align: center;
+  padding: 20px;
   position: relative;
 }
 
@@ -279,16 +253,11 @@ header {
   right: 20px;
   top: 20px;
   background: #141b5a;
-  color: #fff;
   border: none;
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
-}
-
-.page.light .toggle-btn {
-  background: #ddd;
-  color: #222;
+  color: white;
 }
 
 .dashboard {
@@ -303,16 +272,14 @@ header {
   border-radius: 12px;
   padding: 20px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  transition: all 0.3s;
 }
 
-.page.light .card {
-  background: #fff;
+h2, .number {
+  color: #fff;
 }
 
-.card h2 {
-  font-size: 15px;
+span {
+  color: #ddd;
 }
 
 .number {
@@ -320,18 +287,35 @@ header {
   font-weight: bold;
 }
 
-.card span {
-  margin-top: 10px;
-  display: block;
-  font-size: 14px;
-  color: #ddd;
+.gauge-container {
+  position: relative;
+  height: 160px;
 }
 
-/* 🔥 REGRA CRÍTICA: nunca deixar legenda clara no modo claro */
-.page.light .card span,
-.page.light .card h2,
-.page.light .number {
-  color: #222 !important;
+.gauge-text {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  font-weight: bold;
+  color: white;
+}
+
+/* LIGHT MODE */
+body.light {
+  background: #f4f4f4;
+}
+
+body.light .card {
+  background: #fff;
+}
+
+body.light h2,
+body.light .number,
+body.light span,
+body.light .gauge-text {
+  color: #222;
 }
 
 @media (max-width: 1200px) {

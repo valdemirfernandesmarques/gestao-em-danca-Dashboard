@@ -1,10 +1,17 @@
 // backend/controllers/superAdminDashboardController.js
-const { User, Escola, Matricula, Mensalidade } = require("../models");
-const { Op, fn, col, literal } = require("sequelize");
+const {
+  User,
+  Escola,
+  Matricula,
+  Mensalidade,
+  Pagamento
+} = require("../models");
 
-// ================================
-// Gauge - Dados de Uso do Sistema
-// ================================
+const { Op, fn, col } = require("sequelize");
+
+// =======================================
+// 🔘 Gauge - Dados de Uso do Sistema
+// =======================================
 exports.usoSistema = async (req, res) => {
   try {
     if (req.user.perfil !== "SUPER_ADMIN") {
@@ -13,7 +20,6 @@ exports.usoSistema = async (req, res) => {
 
     const totalEscolas = await Escola.count();
 
-    // Consideramos escolas com pelo menos 1 matrícula ativa
     const escolasAtivas = await Matricula.count({
       distinct: true,
       col: "escolaId",
@@ -32,21 +38,26 @@ exports.usoSistema = async (req, res) => {
     });
   } catch (err) {
     console.error("Erro ao carregar dados de uso:", err);
-    res.status(500).json({ error: "Erro ao carregar dados de uso", details: err.message });
+    res.status(500).json({
+      error: "Erro ao carregar dados de uso",
+      details: err.message,
+    });
   }
 };
 
-// ================================
-// Total de Downloads do App
-// ================================
+// =======================================
+// 📥 Total de Downloads do App
+// =======================================
 exports.downloads = async (req, res) => {
   try {
     if (req.user.perfil !== "SUPER_ADMIN") {
       return res.status(403).json({ error: "Acesso negado" });
     }
 
-    // Supondo que cada matrícula ativa representa um "download"
-    const totalDownloads = await Matricula.count({ where: { status: "ATIVA" } });
+    // Cada matrícula ativa representa um download
+    const totalDownloads = await Matricula.count({
+      where: { status: "ATIVA" },
+    });
 
     res.json({
       totalDownloads,
@@ -54,13 +65,16 @@ exports.downloads = async (req, res) => {
     });
   } catch (err) {
     console.error("Erro ao carregar downloads:", err);
-    res.status(500).json({ error: "Erro ao carregar downloads", details: err.message });
+    res.status(500).json({
+      error: "Erro ao carregar downloads",
+      details: err.message,
+    });
   }
 };
 
-// ================================
-// Usuários Ativos (Escolas Ativas)
-// ================================
+// =======================================
+// 👥 Usuários Ativos (Escolas Ativas)
+// =======================================
 exports.usuariosAtivos = async (req, res) => {
   try {
     if (req.user.perfil !== "SUPER_ADMIN") {
@@ -75,17 +89,20 @@ exports.usuariosAtivos = async (req, res) => {
 
     res.json({
       escolasAtivas,
-      mensagem: "Número de usuários ativos carregado com sucesso",
+      mensagem: "Usuários ativos carregados com sucesso",
     });
   } catch (err) {
     console.error("Erro ao carregar usuários ativos:", err);
-    res.status(500).json({ error: "Erro ao carregar usuários ativos", details: err.message });
+    res.status(500).json({
+      error: "Erro ao carregar usuários ativos",
+      details: err.message,
+    });
   }
 };
 
-// ================================
-// Receita Mensal por Serviço
-// ================================
+// =======================================
+// 💳 Receita Mensal por Serviço (Pagamento)
+// =======================================
 exports.receitaPorServico = async (req, res) => {
   try {
     if (req.user.perfil !== "SUPER_ADMIN") {
@@ -93,70 +110,85 @@ exports.receitaPorServico = async (req, res) => {
     }
 
     const hoje = new Date();
-    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
 
-    const mensalidades = await Mensalidade.findAll({
+    const pagamentos = await Pagamento.findAll({
       attributes: [
-        "formaPagamento",
-        [fn("SUM", col("valor")), "total"]
+        "metodo",
+        [fn("SUM", col("valor")), "total"],
       ],
       where: {
-        status: "PAGA",
-        dataVencimento: { [Op.between]: [primeiroDiaMes, ultimoDiaMes] }
+        dataPagamento: {
+          [Op.between]: [inicioMes, fimMes],
+        },
       },
-      group: ["formaPagamento"]
+      group: ["metodo"],
     });
 
-    // Monta objeto com as formas de pagamento
+    // Normalização recomendada
     const receitas = {
       Pix: 0,
-      Cartao: 0,
-      Boleto: 0,
-      Debito: 0,
+      Crédito: 0,
+      Débito: 0,
+      Dinheiro: 0,
     };
 
-    mensalidades.forEach(m => {
-      receitas[m.formaPagamento] = parseFloat(m.get("total")) || 0;
+    pagamentos.forEach((p) => {
+      const metodo = String(p.metodo).toLowerCase();
+      const total = parseFloat(p.get("total")) || 0;
+
+      if (metodo.includes("pix")) receitas.Pix += total;
+      else if (metodo.includes("crédito") || metodo.includes("credito"))
+        receitas.Crédito += total;
+      else if (metodo.includes("débito") || metodo.includes("debito"))
+        receitas.Débito += total;
+      else if (metodo.includes("dinheiro"))
+        receitas.Dinheiro += total;
     });
 
     res.json({
       receitas,
-      mensagem: "Receita mensal por serviço carregada com sucesso"
+      mensagem: "Receita mensal por serviço carregada com sucesso",
     });
   } catch (err) {
     console.error("Erro ao carregar receita por serviço:", err);
-    res.status(500).json({ error: "Erro ao carregar receita por serviço", details: err.message });
+    res.status(500).json({
+      error: "Erro ao carregar receita por serviço",
+      details: err.message,
+    });
   }
 };
 
-// ================================
-// Receita Total por Mês (Barras e Linha)
-// ================================
+// =======================================
+// 📊 Receita Total por Mês (Barras e Linha)
+// =======================================
 exports.receitaTotalMensal = async (req, res) => {
   try {
     if (req.user.perfil !== "SUPER_ADMIN") {
       return res.status(403).json({ error: "Acesso negado" });
     }
 
-    // Últimos 12 meses
     const meses = [];
     const receitasBarras = [];
     const receitasLinha = [];
     const hoje = new Date();
 
     for (let i = 11; i >= 0; i--) {
-      const mes = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-      const primeiroDia = new Date(mes.getFullYear(), mes.getMonth(), 1);
-      const ultimoDia = new Date(mes.getFullYear(), mes.getMonth() + 1, 0);
+      const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const inicio = new Date(data.getFullYear(), data.getMonth(), 1);
+      const fim = new Date(data.getFullYear(), data.getMonth() + 1, 0);
 
-      meses.push(mes.toLocaleString("pt-BR", { month: "short", year: "numeric" }));
+      meses.push(
+        data.toLocaleString("pt-BR", { month: "short", year: "numeric" })
+      );
 
-      const totalMes = await Mensalidade.sum("valor", {
+      const totalMes = await Pagamento.sum("valor", {
         where: {
-          status: "PAGA",
-          dataVencimento: { [Op.between]: [primeiroDia, ultimoDia] }
-        }
+          dataPagamento: {
+            [Op.between]: [inicio, fim],
+          },
+        },
       });
 
       receitasBarras.push(totalMes || 0);
@@ -167,10 +199,13 @@ exports.receitaTotalMensal = async (req, res) => {
       meses,
       receitasBarras,
       receitasLinha,
-      mensagem: "Receita total mensal carregada com sucesso"
+      mensagem: "Receita total mensal carregada com sucesso",
     });
   } catch (err) {
     console.error("Erro ao carregar receita total mensal:", err);
-    res.status(500).json({ error: "Erro ao carregar receita total mensal", details: err.message });
+    res.status(500).json({
+      error: "Erro ao carregar receita total mensal",
+      details: err.message,
+    });
   }
 };

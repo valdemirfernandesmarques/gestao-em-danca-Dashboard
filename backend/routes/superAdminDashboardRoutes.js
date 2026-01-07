@@ -1,21 +1,18 @@
 // backend/routes/superAdminDashboardRoutes.js
 const express = require("express");
 const router = express.Router();
-const authMiddleware = require("../middleware/authMiddleware"); // singular
-const controller = require("../controllers/superAdminDashboardController"); // nome correto do controller
+const authMiddleware = require("../middleware/authMiddleware");
+const controller = require("../controllers/superAdminDashboardController");
 
 // ================================
-// ROTAS DO DASHBOARD SUPER ADMIN
+// ROTAS SUPER ADMIN DASHBOARD
+// Prefixo real: /api/super
 // ================================
 
-// 1️⃣ Gauge - Dados de Uso do Sistema
 router.get("/uso", authMiddleware, controller.usoSistema);
-
-// Futuro: outras rotas do dashboard
-// router.get("/downloads", authMiddleware, controller.downloads);
-// router.get("/usuarios-ativos", authMiddleware, controller.usuariosAtivos);
-// router.get("/receita-servico", authMiddleware, controller.receitaPorServico);
-// router.get("/receita-mensal-barras", authMiddleware, controller.receitaMensalBarras);
-// router.get("/receita-mensal-linha", authMiddleware, controller.receitaMensalLinha);
+router.get("/downloads", authMiddleware, controller.downloads);
+router.get("/usuarios-ativos", authMiddleware, controller.usuariosAtivos);
+router.get("/receita-servico", authMiddleware, controller.receitaPorServico);
+router.get("/receita-total-mensal", authMiddleware, controller.receitaTotalMensal);
 
 module.exports = router;
